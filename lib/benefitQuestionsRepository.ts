@@ -2,7 +2,7 @@ import { benefitQuestions } from "@/data/workflows/benefitWorkflows"
 import { BenefitType, DiscoveryQuestion } from "@/types/aiEngine"
 
 type StrapiQuestion = {
-  id?: string | number
+  questionid?: string | number
   documentId?: string
   questionId?: string
   key?: string
@@ -47,7 +47,7 @@ function toDiscoveryQuestion(entry: StrapiQuestion): DiscoveryQuestion | null {
   }
 
   return {
-    id: String(entry.questionId ?? entry.documentId ?? entry.id ?? entry.key),
+    questionid: String(entry.questionId ?? entry.documentId ?? entry.questionid ?? entry.key),
     key: entry.key,
     question: entry.question,
     inputType: entry.inputType,
@@ -64,6 +64,7 @@ async function fetchFromStrapi(benefitType: BenefitType): Promise<DiscoveryQuest
   endpoint.searchParams.set("filters[benefitType][$eq]", benefitType)
   endpoint.searchParams.set("sort[0]", "order:asc")
   endpoint.searchParams.set("pagination[pageSize]", "100")
+  console.log('endpoint', endpoint)
 
   const response = await fetch(endpoint.toString(), {
     headers: {
