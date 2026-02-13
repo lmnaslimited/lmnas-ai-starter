@@ -4,10 +4,10 @@ import { AIWorkflow } from "@/types/aiEngine"
 type State = {
   workflow?: AIWorkflow
   currentNodeId?: string
-  answers: Record<string, any>
+  answers: Record<string, unknown>
 
   startWorkflow: (wf: AIWorkflow) => void
-  answer: (nodeId: string, value: any) => void
+  answer: (nodeId: string, value: unknown) => void
   next: (nextId?: string) => void
 }
 

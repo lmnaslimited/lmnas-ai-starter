@@ -1,0 +1,15 @@
+{
+  "name": "strapi-backend",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Strapi v5 TypeScript backend POC",
+  "scripts": {
+    "develop": "strapi develop",
+    "start": "strapi start",
+    "build": "strapi build"
+  },
+  "dependencies": {
+    "@strapi/strapi": "^5.0.0",
+    "@strapi/typescript-utils": "^5.0.0"
+  }
+}

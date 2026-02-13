@@ -1,0 +1,28 @@
+{
+  "kind": "collectionType",
+  "collectionName": "answer_logs",
+  "info": {
+    "singularName": "answer-log",
+    "pluralName": "answer-logs",
+    "displayName": "AnswerLog"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "questionId": {
+      "type": "string",
+      "required": true
+    },
+    "answer": {
+      "type": "text",
+      "required": true
+    },
+    "provider": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "json"
+    }
+  }
+}
