@@ -195,6 +195,7 @@ TASK-004 Build Chat Streaming API
 TASK-005 Implement n8n webhook handler
 TASK-006 Create RAG Prompt Builder
 TASK-007 Implement ROI Calculator workflow
+TASK-008 Create Strapi backend integration for benefit-creator questions
 
 1️⃣4️⃣ ACCEPTANCE CRITERIA
 
