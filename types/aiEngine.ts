@@ -1,37 +1,40 @@
-export type AIInputType =
-  | "options"
-  | "number"
-  | "text"
-  | "multiselect"
-  | "slider"
-  | "chat"
+export type BenefitType =
+  | "ROI_CALCULATOR"
+  | "PIPELINE_AUDIT"
+  | "CPQ_MATURITY_SCAN"
+  | "SALES_CYCLE_ANALYZER"
+  | "TENDER_COMPLEXITY_SCORE"
 
-export type AIOption = {
-  id: string
-  label: string
-  next?: string
+export type WorkflowStatus = "idle" | "discovering" | "running" | "completed"
+
+export type CTAContext = {
+  benefitType: BenefitType
+  industry: string
+  entryPage: string
+  leadSource: string
+  userIntent: string
 }
 
-export type AIQuestionNode = {
+export type ChatRole = "assistant" | "user" | "system"
+
+export type ChatMessage = {
   id: string
-  type: AIInputType
+  role: ChatRole
+  content: string
+  timestamp: number
+}
+
+export type DiscoveryQuestion = {
+  questionid: string
   question: string
-  insight?: string
-
-  options?: AIOption[]
-
-  min?: number
-  max?: number
-  step?: number
-  placeholder?: string
-
-  next?: string
+  options?: string[]
+  inputType: "text" | "number" | "options"
+  key: string
 }
 
-export type AIWorkflow = {
-  id: string
-  title: string
-  northStar: string
-  start: string
-  nodes: Record<string, AIQuestionNode>
+export type BenefitResult = {
+  analysis: string
+  score: number
+  recommendation: string
+  northStarAction: string
 }

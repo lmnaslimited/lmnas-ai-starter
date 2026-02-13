@@ -1,13 +1,3 @@
-import { AIQuestionData } from "@/components/AIQuestionBlock"
+import { AIQuestionData } from "@/components/ai/AIQuestionBlock"
 
-export const pipelineAuditWorkflow: AIQuestionData[] = [
-  {
-    id: "sales_stage",
-    question: "Where are most deals getting stuck?",
-    insight: "This helps identify pipeline friction.",
-    options: [
-      { id: "qualification", label: "Qualification" },
-      { id: "proposal", label: "Proposal" },
-    ],
-  },
-]
+export const pipelineAuditWorkflow: AIQuestionData[] = []
