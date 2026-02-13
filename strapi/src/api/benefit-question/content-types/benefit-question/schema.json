@@ -1,0 +1,53 @@
+{
+  "kind": "collectionType",
+  "collectionName": "benefit_questions",
+  "info": {
+    "singularName": "benefit-question",
+    "pluralName": "benefit-questions",
+    "displayName": "Benefit Question",
+    "description": "Questions used by Benefit Creator workflows"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "benefitType": {
+      "type": "enumeration",
+      "enum": [
+        "pipeline_audit",
+        "roi_calculator",
+        "cpq_maturity_scan",
+        "sales_cycle_analyzer",
+        "tender_complexity_score"
+      ],
+      "required": true
+    },
+    "questionId": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "prompt": {
+      "type": "text",
+      "required": true
+    },
+    "insight": {
+      "type": "text"
+    },
+    "order": {
+      "type": "integer",
+      "required": true
+    },
+    "options": {
+      "type": "json",
+      "required": true
+    },
+    "nextQuestionId": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}
