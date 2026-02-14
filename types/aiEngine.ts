@@ -25,7 +25,7 @@ export type ChatMessage = {
 }
 
 export type DiscoveryQuestion = {
-  id: string
+  questionid: string
   question: string
   options?: string[]
   inputType: "text" | "number" | "options"

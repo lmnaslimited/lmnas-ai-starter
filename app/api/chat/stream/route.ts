@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { benefitQuestions } from "@/data/workflows/benefitWorkflows"
+import { getBenefitQuestions } from "@/lib/benefitQuestionsRepository"
 import { CTAContext } from "@/types/aiEngine"
 
 export async function POST(request: Request) {
@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     answers: Record<string, string>
   }
 
-  const flow = benefitQuestions[context.benefitType]
+  const flow = await getBenefitQuestions(context.benefitType)
   const answeredCount = Object.keys(answers).length
   const nextQuestion = flow[answeredCount]
 
