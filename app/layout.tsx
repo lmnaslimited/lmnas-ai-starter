@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import "./globals.css"
 import { CTAContextProvider } from "@/context/CTAContextProvider"
-import AIChatDrawer from "@/components/AIChatDrawer"
+import AIChatDrawer from "@/components/ai/AIChatDrawer"
 
 export const metadata: Metadata = {
   title: "LMNAs AI-First Website",
