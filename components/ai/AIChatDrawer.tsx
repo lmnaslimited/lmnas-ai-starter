@@ -1,125 +1,147 @@
 "use client"
 
-import { useAISessionStore } from "@/store/aiSessionStore"
-import AIMessage from "@/components/ai/AIMessage"
+import { useEffect, useMemo, useState } from "react"
+import { useCTAContext } from "@/context/CTAContextProvider"
+import type { UserSession } from "@/lib/session/types"
+import type { BenefitType, CTAContext, DiscoveryQuestion } from "@/types/aiEngine"
 import AIInput from "@/components/ai/AIInput"
-import AIStreaming from "@/components/ai/AIStreaming"
+import GreetingBanner from "@/components/GreetingBanner"
+import FollowUpQuestionRenderer from "@/components/ai/FollowUpQuestionRenderer"
+import ResultSummaryRenderer from "@/components/ai/ResultSummaryRenderer"
 
-const progressMap = {
-  idle: "Idle",
-  discovering: "Discovery in progress",
-  running: "Running workflow",
-  completed: "Completed",
+const slugToBenefitType: Record<string, BenefitType> = {
+  "roi-calculator": "ROI_CALCULATOR",
+  "pipeline-audit": "PIPELINE_AUDIT",
+  "cpq-maturity": "CPQ_MATURITY_SCAN",
 }
 
 export default function AIChatDrawer() {
-  const {
-    isDrawerOpen,
-    closeDrawer,
-    context,
-    messages,
-    currentQuestion,
-    addMessage,
-    saveAnswer,
-    setQuestion,
-    answers,
-    setWorkflowStatus,
-    setLoading,
-    loading,
-    result,
-    setResult,
-    workflowStatus,
-  } = useAISessionStore()
+  const { isChatOpen, closeChat, benefitSlug } = useCTAContext()
+  const [session, setSession] = useState<UserSession | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [followups, setFollowups] = useState<Array<{ id: string; prompt: string }>>([])
+  const [result, setResult] = useState<{ summary: string; score?: number; recommendation?: string }>()
+  const [context, setContext] = useState<CTAContext | null>(null)
+  const [greeting, setGreeting] = useState<string>("")
+  const [currentQuestion, setCurrentQuestion] = useState<DiscoveryQuestion | null>(null)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
 
-  const progressLabel = progressMap[workflowStatus]
+  useEffect(() => {
+    if (!isChatOpen || !benefitSlug) return
 
-  if (!isDrawerOpen) return null
+    const run = async () => {
+      const benefitType = slugToBenefitType[benefitSlug]
+      if (!benefitType) return
 
-  const submitAnswer = async (value: string) => {
-    if (!currentQuestion || !context) return
+      await fetch("/api/session/bootstrap", { method: "POST" })
+      const response = await fetch("/api/session/me")
+      const json = (await response.json()) as { session: UserSession | null }
+      setSession(json.session)
 
-    addMessage({ role: "user", content: value })
-    saveAnswer(currentQuestion.key, value)
+      const initialContext: CTAContext = {
+        benefitType,
+        industry: "Transformer Manufacturing",
+        entryPage: "/",
+        leadSource: "Website CTA",
+        userIntent: `Run ${benefitType.replaceAll("_", " ")}`,
+      }
+
+      setContext(initialContext)
+      const chatStartResponse = await fetch("/api/chat/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ context: initialContext }),
+      })
+      const chatStart = await chatStartResponse.json()
+
+      setGreeting(chatStart.greeting)
+      setCurrentQuestion(chatStart.question ?? null)
+      setAnswers({})
+      setFollowups([])
+      setResult(undefined)
+      setLoading(false)
+    }
+
+    void run()
+  }, [benefitSlug, isChatOpen])
+
+  const fallbackGreeting = useMemo(() => {
+    if (session?.identity?.name) return `Welcome back, ${session.identity.name}`
+    return `Let's run your ${benefitSlug ?? "benefit"} flow.`
+  }, [benefitSlug, session?.identity?.name])
+
+  const runBenefit = async (discoveryAnswers: Record<string, string>) => {
+    if (!benefitSlug || !session?.sessionId) return
+
+    const response = await fetch("/api/benefit/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        benefitSlug,
+        sessionId: session.sessionId,
+        stage: followups.length ? "followup" : "standard_completed",
+        answers: Object.entries(discoveryAnswers).map(([questionId, value]) => ({ questionId, value })),
+      }),
+    })
+    const json = await response.json()
+    setFollowups(json.followupQuestions ?? [])
+    setResult(json.result)
+  }
+
+  const submitDiscoveryAnswer = async (answer: string) => {
+    if (!currentQuestion || !context || !answer.trim()) return
+
+    const mergedAnswers = { ...answers, [currentQuestion.key]: answer.trim() }
+    setAnswers(mergedAnswers)
     setLoading(true)
 
-    const mergedAnswers = { ...answers, [currentQuestion.key]: value }
-
-    const streamResponse = await fetch("/api/chat/stream", {
+    const response = await fetch("/api/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ context, answers: mergedAnswers }),
-    }).then((res) => res.json())
+    })
 
-    if (streamResponse.nextQuestion) {
-      addMessage({ role: "assistant", content: streamResponse.message })
-      setQuestion(streamResponse.nextQuestion)
-      setWorkflowStatus("discovering")
+    const json = await response.json()
+    if (json.nextQuestion) {
+      setCurrentQuestion(json.nextQuestion)
       setLoading(false)
       return
     }
 
-    setWorkflowStatus("running")
-
-    const resultResponse = await fetch("/api/benefit/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ context, answers: mergedAnswers }),
-    }).then((res) => res.json())
-
-    addMessage({ role: "assistant", content: resultResponse.analysis })
-    setResult(resultResponse)
-    setQuestion(undefined)
-    setWorkflowStatus("completed")
+    setCurrentQuestion(null)
+    await runBenefit(mergedAnswers)
     setLoading(false)
   }
 
+  if (!isChatOpen) return null
+
   return (
-    <aside className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white shadow-2xl">
-      <div className="mx-auto max-w-6xl px-4 py-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-slate-500">AI Interaction Layer</p>
-            <p className="text-sm font-medium text-slate-900">
-              {context?.benefitType.replaceAll("_", " ")} · {progressLabel}
-            </p>
-          </div>
-          <button onClick={closeDrawer} className="text-sm text-slate-600">Close</button>
+    <aside className="fixed inset-x-0 bottom-0 z-40 border-t bg-white p-4 shadow-2xl">
+      <div className="mx-auto max-w-4xl space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-slate-900">{greeting || fallbackGreeting}</p>
+          <button className="text-sm text-slate-600" onClick={closeChat}>Close</button>
         </div>
 
-        <div className="max-h-80 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-          {messages.map((message) => (
-            <AIMessage key={message.id} message={message} />
-          ))}
-          <AIStreaming active={loading} />
-        </div>
+        <GreetingBanner session={session} />
 
         {currentQuestion && (
-          <div className="mt-3 rounded-xl border border-slate-200 p-3">
+          <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-medium text-slate-900">{currentQuestion.question}</p>
             <AIInput
               inputType={currentQuestion.inputType}
               options={currentQuestion.options}
-              onSubmit={submitAnswer}
+              onSubmit={submitDiscoveryAnswer}
             />
+            {loading ? <p className="text-xs text-slate-500">Working...</p> : null}
           </div>
         )}
 
-        {result && (
-          <div className="mt-3 grid gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 md:grid-cols-3">
-            <div>
-              <p className="text-xs uppercase">Score</p>
-              <p className="text-lg font-semibold">{result.score}/100</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase">Recommendation</p>
-              <p>{result.recommendation}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase">North Star</p>
-              <p>{result.northStarAction}</p>
-            </div>
-          </div>
-        )}
+        {!currentQuestion && !result && !followups.length ? (
+          <p className="text-sm text-slate-500">Answer the guided questions to run this benefit.</p>
+        ) : null}
+
+        {followups.length ? <FollowUpQuestionRenderer questions={followups} /> : <ResultSummaryRenderer result={result} />}
       </div>
     </aside>
   )

@@ -288,8 +288,9 @@ npm run start
 
 ## 9) Notes on current starter behavior
 
-- The default UI flow in `components/AIChatDrawer.tsx` triggers `/api/benefit/run` with a sample answer payload.
-- Strapi-backed guided question APIs (`/api/chat/start`, `/api/chat/stream`) exist and can be extended for a richer in-drawer Q&A flow.
+- The chat drawer flow is implemented in `components/ai/AIChatDrawer.tsx` and starts when a user chooses a benefit calculator CTA.
+- The drawer greets the user, fetches Strapi-backed discovery questions via `/api/chat/start` + `/api/chat/stream`, and renders each question with `components/ai/AIInput.tsx` based on `inputType` (`text`, `number`, `options`).
+- After discovery answers are submitted, `/api/benefit/run` is called: follow-up payloads are shown with `components/ai/FollowUpQuestionRenderer.tsx`, otherwise final outcomes are shown with `components/ai/ResultSummaryRenderer.tsx`.
 - Session persistence uses signed cookies; Redis is used only for geo cache optimization.
 
 This project is a strong base to evolve into a complete AI-first conversion website with integrated orchestration, analytics, and CRM handoff.
