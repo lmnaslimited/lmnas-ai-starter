@@ -1,46 +1,53 @@
 import { NextResponse } from "next/server"
-import { buildRAGPrompt } from "@/lib/ragPromptBuilder"
-import { BenefitResult, CTAContext } from "@/types/aiEngine"
-
-function scoreFromAnswers(answers: Record<string, string>) {
-  const numericValues = Object.values(answers)
-    .map((value) => Number(value))
-    .filter((value) => Number.isFinite(value))
-
-  if (!numericValues.length) return 72
-  const avg = numericValues.reduce((a, b) => a + b, 0) / numericValues.length
-  return Math.max(55, Math.min(96, Math.round(100 - avg / 2)))
-}
+import { BenefitRunRequestSchema } from "@/types/benefit"
+import { getSession, saveSession } from "@/lib/session/session"
+import { buildBenefitPrompt } from "@/lib/benefit/promptBuilder"
+import { runBenefitWorkflow } from "@/lib/n8n/client"
+import { parseBenefitJson } from "@/lib/benefit/jsonParser"
+import { upsertBenefitHistory } from "@/lib/benefit/benefitSessionStore"
+import { track } from "@/lib/analytics/rudder"
 
 export async function POST(request: Request) {
-  const { context, answers } = (await request.json()) as {
-    context: CTAContext
-    answers: Record<string, string>
+  try {
+    const body: unknown = await request.json()
+    const input = BenefitRunRequestSchema.parse(body)
+    const session = await getSession()
+
+    if (!session || session.sessionId !== input.sessionId) {
+      return NextResponse.json({ error: "Invalid session", code: "SESSION_INVALID" }, { status: 401 })
+    }
+
+    const prompts = buildBenefitPrompt(input, session)
+    const workflowResponse = await runBenefitWorkflow({
+      session,
+      input,
+      prompts,
+    })
+    const parsed = parseBenefitJson(workflowResponse)
+
+    if (parsed.followup_required) {
+      await track({
+        anonymousId: session.anonymousId,
+        userId: session.identity?.email,
+        event: "benefit_followup_triggered",
+        properties: { benefitSlug: input.benefitSlug },
+      })
+
+      return NextResponse.json({ ok: true, followupRequired: true, followupQuestions: parsed.followupQuestions ?? [] })
+    }
+
+    session.benefitHistory = upsertBenefitHistory(session, input.benefitSlug, parsed.result?.score)
+    await saveSession(session)
+
+    await track({
+      anonymousId: session.anonymousId,
+      userId: session.identity?.email,
+      event: "benefit_completed",
+      properties: { benefitSlug: input.benefitSlug, score: parsed.result?.score },
+    })
+
+    return NextResponse.json({ ok: true, followupRequired: false, result: parsed.result })
+  } catch {
+    return NextResponse.json({ error: "Benefit run failed", code: "BENEFIT_RUN_FAILED" }, { status: 500 })
   }
-
-  await fetch(`${new URL(request.url).origin}/api/webhook/benefit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userData: { industry: context.industry, leadSource: context.leadSource },
-      benefitType: context.benefitType,
-      answers,
-    }),
-  })
-
-  const prompt = buildRAGPrompt(context, answers)
-  const score = scoreFromAnswers(answers)
-
-  const result: BenefitResult = {
-    analysis: `Analysis complete. Based on your inputs, LMNAs AI suggests immediate automation opportunities and improved conversion confidence.`,
-    score,
-    recommendation:
-      score < 75
-        ? "Run a 2-week pipeline remediation sprint with AI-led qualification rules."
-        : "Scale with AI quote copilots and forecast coaching across the team.",
-    northStarAction:
-      context.benefitType === "ROI_CALCULATOR" ? "Generate ROI Report" : "Book Demo",
-  }
-
-  return NextResponse.json({ ...result, promptUsed: prompt })
 }

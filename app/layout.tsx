@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
 import "./globals.css"
-import { CTAContextProvider } from "@/components/context/CTAContextProvider"
+import { CTAContextProvider } from "@/context/CTAContextProvider"
 import AIChatDrawer from "@/components/ai/AIChatDrawer"
 
 export const metadata: Metadata = {
-  title: "LMNAs AI-First Website POC",
+  title: "LMNAs AI-First Website",
   description: "Conversational AI-first interaction model for benefit creator CTAs.",
 }
 
